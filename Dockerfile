@@ -1,29 +1,16 @@
-# Imagen base con Tesseract ya instalado
-FROM ubuntu:22.04
+# Imagen base con Tesseract 4 y Python ya configurado
+FROM tesseractshadow/tesseract4re:4.0.0
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-# Instalar dependencias del sistema y Python
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
-    tesseract-ocr \
-    tesseract-ocr-spa \
-    poppler-utils \
-    libtesseract-dev \
-    libleptonica-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Verificamos Tesseract
-RUN which tesseract && tesseract --version
+# Instalamos Python y dependencias
+RUN apt-get update && apt-get install -y python3 python3-pip python3-venv poppler-utils && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Verificar instalación
+RUN which tesseract && tesseract --version
 
 EXPOSE 8000
 
