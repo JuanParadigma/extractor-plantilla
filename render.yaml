@@ -2,24 +2,21 @@ services:
   - type: web
     name: extractor-facturas
     env: python
-    region: oregon  
-    plan: free      
+    region: oregon
+    plan: free
 
     buildCommand: |
+      pip install --no-cache-dir -r requirements.txt
+
+    startCommand: |
       apt-get update && apt-get install -y \
         tesseract-ocr \
         tesseract-ocr-spa \
         libtesseract-dev \
         poppler-utils \
-        && rm -rf /var/lib/apt/lists/*
-      pip install --no-cache-dir -r requirements.txt
-
-    startCommand: |
-      export PATH="/usr/bin:$PATH"
-      export TESSDATA_PREFIX="/usr/share/tesseract-ocr/4.00/tessdata"
+        && rm -rf /var/lib/apt/lists/* && \
       uvicorn server:app --host 0.0.0.0 --port $PORT
 
-    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.13

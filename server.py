@@ -8,10 +8,12 @@ import tempfile, os, re
 from extractor_v6 import extract_from_pdf  # <- devuelve el payload minimal normalizado
 
 
-# 🔧 FIX: asegurar rutas de Tesseract en Render
-os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
+# 🔧 FIX Render: asegurar rutas de Tesseract
 os.environ['PATH'] += os.pathsep + '/usr/bin'
+os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 
 app = FastAPI(title="Factura Extractor API v6", version="1.2.0")
