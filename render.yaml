@@ -4,18 +4,20 @@ services:
     env: python
     region: oregon  
     plan: free      
-    
+
     buildCommand: |
       apt-get update && apt-get install -y \
         tesseract-ocr \
         tesseract-ocr-spa \
+        tesseract-ocr-eng \
         libtesseract-dev \
         poppler-utils \
-        && rm -rf /var/lib/apt/lists/*
+        && rm -rf /var/lib/apt/lists/* && \
       pip install --no-cache-dir -r requirements.txt
 
     startCommand: "uvicorn server:app --host 0.0.0.0 --port $PORT"
-    autoDeploy:true
+    autoDeploy: true
+
     envVars:
       - key: PYTHON_VERSION
         value: 3.13
