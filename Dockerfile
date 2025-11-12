@@ -1,29 +1,25 @@
-# Imagen base liviana con Python y Debian
+# Imagen base con Python y acceso a apt-get
 FROM python:3.13-slim
 
-# Evita prompts interactivos de apt
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Instala dependencias del sistema necesarias para Tesseract y Poppler
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Instalar dependencias del sistema necesarias para Tesseract y Poppler
+RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     tesseract-ocr-spa \
     libtesseract-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Copia el código y requirements
+# Establecer el directorio de trabajo
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar los archivos del proyecto
 COPY . .
 
-# Variables de entorno para pytesseract
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-ENV PATH="/usr/bin:$PATH"
+# Instalar dependencias de Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Expone el puerto para Render
+# Exponer el puerto (Render asigna automáticamente $PORT)
 EXPOSE 8000
 
-# Comando de arranque
+# Comando de inicio del servidor FastAPI
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
