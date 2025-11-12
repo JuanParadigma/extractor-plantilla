@@ -1,8 +1,12 @@
 services:
   - type: web
-    name: extractor-facturas
+    name: extractor
     env: docker
-    region: oregon
     plan: free
-    autoDeploy: true
     dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "10000"

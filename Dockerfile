@@ -1,17 +1,24 @@
-# Imagen base con Tesseract 4 y Python ya configurado
-FROM tesseractshadow/tesseract4re:4.0.0
+FROM ubuntu:22.04
 
-# Instalamos Python y dependencias
-RUN apt-get update && apt-get install -y python3 python3-pip python3-venv poppler-utils && rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instalar dependencias del sistema, tesseract y python
+RUN apt-get update && apt-get install -y \
+    python3 python3-pip python3-venv \
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    tesseract-ocr-eng \
+    libtesseract-dev \
+    poppler-utils \
+    libleptonica-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY . .
 
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Verificar instalación
-RUN which tesseract && tesseract --version
+COPY . .
 
-EXPOSE 8000
-
-CMD ["python3", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 10000
+CMD ["python3", "-m", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "10000"]
