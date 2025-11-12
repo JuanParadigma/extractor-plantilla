@@ -25,6 +25,7 @@ except Exception:
 
 try:
     import pytesseract
+    pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
     from pytesseract import image_to_data
 except Exception:
     pytesseract = None

@@ -13,7 +13,7 @@ os.environ['PATH'] += os.pathsep + '/usr/bin'
 os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
 
 import pytesseract
-pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
 
 
 app = FastAPI(title="Factura Extractor API v6", version="1.2.0")

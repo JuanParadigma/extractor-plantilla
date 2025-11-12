@@ -17,9 +17,11 @@ except Exception:
     convert_from_path = None
 try:
     import pytesseract
+    pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
     from pytesseract import image_to_data
 except Exception:
     pytesseract = None
+    pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
     image_to_data = None
 try:
     from PIL import Image
