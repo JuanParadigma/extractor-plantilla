@@ -1,7 +1,7 @@
 services:
   - type: web
     name: extractor-facturas
-    env: docker 
+    env: docker
     region: oregon
     plan: free
     autoDeploy: true
