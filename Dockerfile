@@ -1,16 +1,9 @@
-FROM ubuntu:22.04
+FROM ghcr.io/tesseract-ocr/tesseract:5.4.0
 
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Instalar dependencias del sistema, tesseract y python
+# Instalar Python y dependencias
 RUN apt-get update && apt-get install -y \
     python3 python3-pip python3-venv \
-    tesseract-ocr \
-    tesseract-ocr-spa \
-    tesseract-ocr-eng \
-    libtesseract-dev \
     poppler-utils \
-    libleptonica-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
