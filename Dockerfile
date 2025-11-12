@@ -1,6 +1,5 @@
 FROM python:3.11-bullseye
 
-
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
@@ -11,7 +10,6 @@ RUN apt-get update && apt-get install -y \
     libleptonica-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Verificamos que realmente se instaló
 RUN which tesseract && tesseract --version
 
 WORKDIR /app
