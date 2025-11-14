@@ -2,19 +2,14 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from enum import Enum
-from typing import Annotated, Dict, Any, List
+from typing import Annotated, Dict, Any, List, Optional
 import tempfile, os, re
 
 from extractor_v6 import extract_from_pdf  # <- devuelve el payload minimal normalizado
 
-
 # 🔧 FIX Render: asegurar rutas de Tesseract
 os.environ['PATH'] += os.pathsep + '/usr/bin'
 os.environ['TESSDATA_PREFIX'] = '/usr/share/tesseract-ocr/4.00/tessdata'
-
-import pytesseract
-pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
-
 
 app = FastAPI(title="Factura Extractor API v6", version="1.2.0")
 
@@ -60,6 +55,7 @@ def _to_kv(minimal: Dict[str, Any]) -> str:
     # Campos principales
     lines.append(f"status=ok")
     lines.append(f"version=1")
+    lines.append(f"ocr={'1' if minimal.get('ocr') else '0'}")
     lines.append(f"numero={minimal.get('numero','')}")
     lines.append(f"fecha={minimal.get('fecha','')}")
     lines.append(f"cuit={minimal.get('cuit','')}")
@@ -104,7 +100,7 @@ def _to_ini(minimal: Dict[str, Any]) -> str:
     Alternativa INI por secciones (si te gusta agrupar visualmente).
     """
     out: List[str] = []
-    out += ["[meta]", "status=ok", "version=1", ""]
+    out += ["[meta]", "status=ok", "version=1", f"ocr={'1' if minimal.get('ocr') else '0'}", ""]
     out += ["[factura]"]
     out += [f"numero={minimal.get('numero','')}",
             f"fecha={minimal.get('fecha','')}",
@@ -159,7 +155,8 @@ def _clean_cuit(cuit: str) -> str:
 async def extract_invoice(
     file: Annotated[UploadFile, File(...)],
     vendor: Annotated[Vendor, Form(...)],
-    fmt: Annotated[OutFmt, Query(alias="format")] = OutFmt.json  # ?format=json|kv|ini
+    fmt: Annotated[OutFmt, Query(alias="format")] = OutFmt.json,  # ?format=json|kv|ini
+    use_ocr: Annotated[Optional[bool], Form()] = None,
 ) -> Response:
     filename = (file.filename or "").lower()
     if not filename.endswith(".pdf"):
@@ -175,7 +172,12 @@ async def extract_invoice(
 
     try:
         # El extractor ya devuelve el payload minimal normalizado
-        minimal = extract_from_pdf(tmp_path, vendor_hint=vendor.value, cfg_path="vendors.yaml")
+        minimal = extract_from_pdf(
+            tmp_path,
+            vendor_hint=vendor.value,
+            cfg_path="vendors.yaml",
+            use_ocr_hint=use_ocr,
+        )
 
         # Limpieza del CUIT antes de devolver
         if "cuit" in minimal:

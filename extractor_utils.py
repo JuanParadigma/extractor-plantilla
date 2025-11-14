@@ -5,23 +5,34 @@
 # Detecta vendedor por nombre o CUIT
 # Extrae datos comunes
 
+import os
+import platform
 import re
 from typing import List, Tuple, Optional, Dict, Any
 try:
     import fitz
 except Exception:
     fitz = None
+POPPLER_PATH = os.environ.get("POPPLER_PATH")
+
 try:
     from pdf2image import convert_from_path
 except Exception:
     convert_from_path = None
+    
 try:
     import pytesseract
-    pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
+    
+    if platform.system() == "Windows":
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    else:
+        pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+        
+    print("Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
+    print("Existe?", os.path.exists(pytesseract.pytesseract.tesseract_cmd))
     from pytesseract import image_to_data
 except Exception:
     pytesseract = None
-    pytesseract.pytesseract.tesseract_cmd = "/usr/local/bin/tesseract"
     image_to_data = None
 try:
     from PIL import Image
@@ -86,10 +97,27 @@ def read_pdf_text(pdf_path: str) -> List[str]:
     return [norm_line(l) for l in lines if norm_line(l)]
 
 def ocr_pdf_to_lines(pdf_path: str, dpi: int = 300) -> List[str]:
+       
+    print("\n=== Entré a ocr_pdf_to_lines ===")
+    print("convert_from_path:", convert_from_path)
+    print("pytesseract:", pytesseract)
+    print("Image:", Image)
+    
     if convert_from_path is None or pytesseract is None or Image is None: return []
+    
     text_lines: List[str] = []
-    try: images = convert_from_path(pdf_path, dpi=dpi)
-    except Exception: return []
+    
+    try:
+        if POPPLER_PATH:
+            images = convert_from_path(pdf_path, dpi=dpi, poppler_path=POPPLER_PATH)
+        else:
+            images = convert_from_path(pdf_path, dpi=dpi)
+    except Exception as exc:
+        print("convert_from_path failed:", exc)
+        if not POPPLER_PATH and platform.system() == "Windows":
+            print("Tip: instala Poppler y define la variable de entorno POPPLER_PATH apuntando a la carpeta 'bin'.")
+        return []
+
     for img in images:
         try:
             data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT, lang='spa+eng')
@@ -114,6 +142,7 @@ def ocr_pdf_to_lines(pdf_path: str, dpi: int = 300) -> List[str]:
             for line in txt.splitlines():
                 line = norm_line(line)
                 if line: text_lines.append(line)
+                
     return text_lines
 
 def first_amount_forward(lines: List[str], start_idx: int, max_ahead: int = 12) -> Optional[float]:

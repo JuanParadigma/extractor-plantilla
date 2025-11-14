@@ -93,6 +93,24 @@ IVA_RATES_CANON = (27.0, 21.0, 10.5, 5.0, 2.5)
 #  HELPERS
 # =========================
 
+_OCR_KEYWORD_FIXES = str.maketrans({
+    "0": "O",
+    "1": "I",
+    "5": "S",
+    "6": "G",
+    "8": "B",
+    "|": "I",
+    "@": "A"
+})
+
+
+def _normalize_ocr_keyword(text: str) -> str:
+    """
+    Corrige caracteres tipicos que OCR confunde (0->O, 1->I, etc.).
+    Solo se usa para detectar labels como TOTAL / SUBTOTAL / IVA.
+    """
+    return text.translate(_OCR_KEYWORD_FIXES) if text else text
+
 def _load_vendor_config(cfg_path: str) -> Dict[str, Any]:
     if not os.path.exists(cfg_path):
         return {"detect": {"names": {}, "cuits": {}}}
@@ -114,20 +132,21 @@ def _fallback_labels(lines: List[str], out: Dict[str, Any]) -> None:
     iva_items = []; perc_items = []
     for i, line in enumerate(tail):
         up = line.upper()
-        if sub is None and 'SUBTOTAL' in up:
+        up_key = _normalize_ocr_keyword(up)
+        if sub is None and 'SUBTOTAL' in up_key:
             v = first_amount_forward(tail, i)
             if v is not None: sub = v
-        if 'IVA' in up:
+        if 'IVA' in up_key:
             v = first_amount_forward(tail, i)
             if v is not None:
                 iva = (iva or 0.0) + v
                 iva_items.append({"alicuota": None, "monto": v})
-        if any(k in up for k in ['PERC', 'PERCEP', 'IIBB', 'INGRESOS BRUTOS', 'ARBA', 'AGIP']):
+        if any(k in up_key for k in ['PERC', 'PERCEP', 'IIBB', 'INGRESOS BRUTOS', 'ARBA', 'AGIP']):
             v = first_amount_forward(tail, i)
             if v is not None:
                 perc = (perc or 0.0) + v
                 perc_items.append({"desc": line, "monto": v})
-        if 'TOTAL' in up:
+        if 'TOTAL' in up_key:
             v = first_amount_forward(tail, i)
             if v is not None: tot = v
     out["subtotal"] = sub
@@ -291,13 +310,22 @@ def _build_minimal_payload(full: Dict[str, Any], prefer_cuit: str = "proveedor")
 #  PIPELINE PRINCIPAL
 # =========================
 
-def extract_from_pdf(pdf_path: str, vendor_hint: Optional[str] = None, cfg_path: str = "vendors.yaml") -> Dict[str, Any]:
+def extract_from_pdf(
+    pdf_path: str,
+    vendor_hint: Optional[str] = None,
+    cfg_path: str = "vendors.yaml",
+    use_ocr_hint: Optional[bool] = None,
+) -> Dict[str, Any]:
     """Mantengo tu pipeline, pero ahora retornamos el payload MINIMAL normalizado."""
-    lines = read_pdf_text(pdf_path)
-    used_ocr = False
 
-    if not lines or sum(len(l) for l in lines) < 30:
-        lines = ocr_pdf_to_lines(pdf_path); used_ocr = True
+    prefer_ocr = True if use_ocr_hint is None else bool(use_ocr_hint)
+    if prefer_ocr:
+        lines = ocr_pdf_to_lines(pdf_path)
+        used_ocr = True
+    else:
+        lines = read_pdf_text(pdf_path)
+        used_ocr = False
+
 
     header = extract_header_common(lines)
     cfg = _load_vendor_config(cfg_path)
@@ -326,7 +354,7 @@ def extract_from_pdf(pdf_path: str, vendor_hint: Optional[str] = None, cfg_path:
         "percepciones_total": None,
         "percepciones_detalle": [],
         "total": None,
-        "debug": {"vendor": vendor or "UNKNOWN", "lines_count": len(lines)}
+        "debug": {"vendor": vendor or "UNKNOWN", "lines_count": len(lines), "used_ocr": bool(used_ocr)}
     }
 
     handler = REGISTRY.get((vendor or "").upper())
@@ -342,5 +370,6 @@ def extract_from_pdf(pdf_path: str, vendor_hint: Optional[str] = None, cfg_path:
 
     # Si te interesa saber si usamos OCR para log/debug, podés anexarlo:
     # minimal["_meta"] = {"source": "ocr" if used_ocr else "text", "file": os.path.basename(pdf_path)}
+    minimal["ocr"] = bool(used_ocr)
 
     return minimal
