@@ -8,6 +8,7 @@
 import os
 import platform
 import re
+import shutil
 from typing import List, Tuple, Optional, Dict, Any
 try:
     import fitz
@@ -20,17 +21,40 @@ try:
 except Exception:
     convert_from_path = None
     
+def _resolve_tesseract_path() -> Optional[str]:
+    """
+    Intenta localizar el binario de tesseract buscando:
+    1) Variable TESSERACT_CMD.
+    2) Ruta conocida en Windows o Linux (/usr/bin/tesseract).
+    3) Resultado de shutil.which("tesseract").
+    """
+    candidates = []
+    env_path = os.environ.get("TESSERACT_CMD")
+    if env_path:
+        candidates.append(env_path)
+    if platform.system() == "Windows":
+        candidates.append(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+    else:
+        candidates.append("/usr/bin/tesseract")
+        auto_path = shutil.which("tesseract")
+        if auto_path:
+            candidates.append(auto_path)
+    for cand in candidates:
+        if cand and os.path.exists(cand):
+            return cand
+    return None
+
 try:
     import pytesseract
-    
-    if platform.system() == "Windows":
-        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    tess_path = _resolve_tesseract_path()
+    if tess_path:
+        pytesseract.pytesseract.tesseract_cmd = tess_path
+        print("Tesseract path:", tess_path)
+        from pytesseract import image_to_data
     else:
-        pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
-        
-    print("Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
-    print("Existe?", os.path.exists(pytesseract.pytesseract.tesseract_cmd))
-    from pytesseract import image_to_data
+        print("Tesseract no encontrado; define TESSERACT_CMD o instala el binario.")
+        pytesseract = None
+        image_to_data = None
 except Exception:
     pytesseract = None
     image_to_data = None
