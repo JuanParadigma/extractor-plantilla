@@ -35,11 +35,20 @@ def _resolve_tesseract_path() -> Optional[str]:
     if platform.system() == "Windows":
         candidates.append(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
     else:
-        candidates.append("/usr/bin/tesseract")
+        candidates.extend([
+            "/usr/bin/tesseract",
+            "/usr/local/bin/tesseract",
+            "/opt/render/project/src/.apt/usr/bin/tesseract",
+            "/opt/render/.apt/usr/bin/tesseract",
+        ])
         auto_path = shutil.which("tesseract")
         if auto_path:
             candidates.append(auto_path)
+    seen = set()
     for cand in candidates:
+        if not cand or cand in seen:
+            continue
+        seen.add(cand)
         if cand and os.path.exists(cand):
             return cand
     return None
