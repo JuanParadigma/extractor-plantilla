@@ -2,8 +2,8 @@
 import re
 from typing import List, Dict, Any, Tuple, Optional
 
-from vendors_registry import register
-from extractor_utils import NUM_PURE, NUM_ANY, parse_number_smart
+from app.vendors.registry import register
+from app.services.text_utils import NUM_PURE, NUM_ANY, parse_number_smart
 
 
 def _extract_totals_numeric(lines: List[str], out: Dict[str, Any]) -> bool:

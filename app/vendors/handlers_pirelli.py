@@ -1,8 +1,9 @@
 # handlers_pirelli.py
 import re
 from typing import List, Dict, Any, Optional
-from vendors_registry import register
-from extractor_utils import NUM_ANY, NUM_PURE, parse_number_smart
+
+from app.vendors.registry import register
+from app.services.text_utils import NUM_ANY, NUM_PURE, parse_number_smart
 
 @register("PIRELLI")
 def extract_totals_pirelli(lines: List[str], out: Dict[str, Any]) -> None:
