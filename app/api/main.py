@@ -14,7 +14,6 @@ apply_runtime_env()
 
 from app.services.extractor import extract_from_pdf  # noqa: E402
 
-
 def create_app() -> FastAPI:
     app = FastAPI(title="Factura Extractor API v6", version="1.2.0")
     app.add_middleware(
@@ -68,6 +67,5 @@ def create_app() -> FastAPI:
                 Uploads.cleanup_temp_file(tmp_path)
 
     return app
-
 
 app = create_app()

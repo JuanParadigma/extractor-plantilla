@@ -45,4 +45,3 @@ __all__ = [
     "parse_number_smart",
     "strip_currency",
 ]
-

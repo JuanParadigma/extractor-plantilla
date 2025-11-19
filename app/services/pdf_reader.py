@@ -1,5 +1,4 @@
 """PDF readers: plain text extraction (fitz) and OCR (pdf2image + pytesseract)."""
-
 from typing import Any, List, Optional, Tuple
 import os
 import platform
@@ -7,14 +6,12 @@ import shutil
 
 from app.services.text_utils import norm_line
 
-
 def _import_fitz():
     try:
         import fitz as _fitz
         return _fitz
     except Exception:
         return None
-
 
 def _import_pdf2image():
     try:
@@ -187,7 +184,7 @@ def _extract_lines_from_image(image: Any) -> List[str]:
     return _extract_lines_with_string(image)
 
 
-def ocr_pdf_to_lines(pdf_path: str, dpi: int = 300) -> List[str]:
+def ocr_pdf_to_lines(pdf_path: str, dpi: int = 150) -> List[str]:
     if not _ocr_dependencies_ready():
         return []
     images = _convert_pdf_to_images(pdf_path, dpi)

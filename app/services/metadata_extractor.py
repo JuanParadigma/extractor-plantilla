@@ -1,5 +1,4 @@
 """Extraction helpers for header fields, vendor detection and CUIT/name parsing."""
-
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -15,7 +14,6 @@ def _find_invoice_type(lines: List[str]) -> Optional[str]:
         if re.fullmatch(r"[ABC]", stripped, re.I):
             return stripped.upper()
     return None
-
 
 def _find_invoice_number(lines: List[str]) -> Optional[str]:
     number = None
@@ -33,7 +31,6 @@ def _find_first_date(lines: List[str]) -> Optional[str]:
             return match.group(0)
     return None
 
-
 def _date_from_neighbors(lines: List[str], idx: int) -> Optional[str]:
     match = RE_FECHA.search(lines[idx])
     if match:
@@ -44,7 +41,6 @@ def _date_from_neighbors(lines: List[str], idx: int) -> Optional[str]:
         if match:
             return match.group(0)
     return None
-
 
 def _extract_cae_data(lines: List[str]) -> Tuple[Optional[str], Optional[str]]:
     cae = None
@@ -60,7 +56,6 @@ def _extract_cae_data(lines: List[str]) -> Tuple[Optional[str], Optional[str]]:
             cae_vto = _date_from_neighbors(lines, idx)
     return cae, cae_vto
 
-
 def extract_header_common(lines: List[str]) -> Dict[str, Any]:
     header: Dict[str, Any] = {"tipo": None, "numero": None, "fecha": None, "cae": None, "cae_vto": None}
     header["tipo"] = _find_invoice_type(lines)
@@ -71,7 +66,6 @@ def extract_header_common(lines: List[str]) -> Dict[str, Any]:
     header["cae_vto"] = cae_vto
     return header
 
-
 def _collect_cuit_positions(lines: List[str]) -> List[Tuple[int, str]]:
     positions: List[Tuple[int, str]] = []
     for idx, line in enumerate(lines):
@@ -79,7 +73,6 @@ def _collect_cuit_positions(lines: List[str]) -> List[Tuple[int, str]]:
             positions.append((idx, match.group(0)))
     positions.sort(key=lambda item: item[0])
     return positions
-
 
 def _guess_client_name(lines: List[str], idx: int) -> Optional[str]:
     lower = max(0, idx - 5)
@@ -92,12 +85,10 @@ def _guess_client_name(lines: List[str], idx: int) -> Optional[str]:
             return candidate
     return None
 
-
 VENDOR_REGEX = {
     "GUERRINI": r"GUERRINI\s+NEUM[A?]TICOS?\s*S\.?A\.?",
     "PIRELLI": r"PIRELLI\s+NEUM[A?]TICOS?\s*S\.?A\.?I\.?C\.?",
 }
-
 
 def _guess_vendor_name(lines: List[str], vendor: Optional[str]) -> Optional[str]:
     if not vendor:
@@ -109,7 +100,6 @@ def _guess_vendor_name(lines: List[str], vendor: Optional[str]) -> Optional[str]
         if re.search(pattern, line, re.I):
             return line
     return None
-
 
 def extract_names_and_cuits(
     lines: List[str], vendor: Optional[str]
@@ -128,7 +118,6 @@ def extract_names_and_cuits(
     proveedor = _guess_vendor_name(lines, vendor)
     return proveedor, cuit_prov, cliente, cuit_cli
 
-
 def detect_vendor_basic(lines: List[str], name_keywords: Dict[str, List[str]]) -> Optional[str]:
     header = " ".join(lines[:120]).upper()
     for vid, keywords in name_keywords.items():
@@ -137,9 +126,7 @@ def detect_vendor_basic(lines: List[str], name_keywords: Dict[str, List[str]]) -
                 return vid
     return None
 
-
 def detect_vendor_by_cuit(cuit: Optional[str], cuit_map: Dict[str, str]) -> Optional[str]:
     if not cuit:
         return None
     return cuit_map.get(cuit)
-
