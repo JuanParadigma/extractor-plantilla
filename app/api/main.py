@@ -14,6 +14,7 @@ apply_runtime_env()
 
 from app.services.extractor import extract_from_pdf  # noqa: E402
 
+
 def create_app() -> FastAPI:
     app = FastAPI(title="Factura Extractor API v6", version="1.2.0")
     app.add_middleware(
@@ -37,7 +38,8 @@ def create_app() -> FastAPI:
     ) -> Response:
         filename = (file.filename or "").lower()
         if not filename.endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Solo se aceptan archivos PDF por el momento.")
+            raise HTTPException(
+                status_code=400, detail="Solo se aceptan archivos PDF por el momento.")
 
         tmp_path = None
         try:
@@ -66,6 +68,64 @@ def create_app() -> FastAPI:
             if tmp_path:
                 Uploads.cleanup_temp_file(tmp_path)
 
+    @app.post("/extract-batch", response_model=None)
+    async def extract_invoice_batch(
+        files: Annotated[list[UploadFile], File(...)],
+        vendor: Annotated[Vendor, Form(...)],
+        fmt: Annotated[OutFmt, Query(alias="format")] = OutFmt.json,
+        use_ocr: Annotated[Optional[bool], Form()] = None
+    ) -> Response:
+        if not files:
+            raise HTTPException(
+                status_code=400, detail="No se enviarn archivos.")
+
+        temp_paths = []
+        results = []
+
+        try:
+            for file in files:
+                filename = (file.filename or "").lower()
+                if not filename.endswith(".pdf"):
+                    results.append({
+                        "file": filename,
+                        "status": "error",
+                        "error": "Solo se aceptan PDFs."
+                    })
+                    continue
+                tmp_path = Uploads.save_temp_pdf(file)
+                temp_paths.append(tmp_path)
+
+                try:
+                    minimal = extract_from_pdf(
+                        tmp_path,
+                        vendor_hint=vendor.value,
+                        cfg_path="vendors.yaml",
+                        use_ocr_hint=use_ocr
+                    )
+
+                    if "cuit" in minimal:
+                        minimal["cuit"] = clean_cuit(minimal["cuit"])
+
+                    results.append({
+                        "file": filename,
+                        "status": "ok",
+                        "data": minimal
+                    })
+
+                except Exception as ex:
+                    results.append({
+                        "file": filename,
+                        "status": "error",
+                        "error": str(ex)
+                    })
+
+        finally:
+            for path in temp_paths:
+                if path:
+                    Uploads.cleanup_temp_file(path)
+
+        return JSONResponse({"count": len(results), "results": results})
     return app
+
 
 app = create_app()
