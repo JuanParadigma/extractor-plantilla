@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  extractor-api:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    networks:
+      - extractor-net
+
+networks:
+  extractor-net:
+    driver: bridge

@@ -1,27 +1,26 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=on
-
-# Install Tesseract OCR, poppler, and build essentials used by pytesseract/pdf tooling
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tesseract-ocr \
-    tesseract-ocr-spa \
-    libtesseract-dev \
-    libleptonica-dev \
-    poppler-utils \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    libtesseract-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+FROM base AS dev
 
-ENV PORT=10000
-EXPOSE 10000
+COPY app ./app/
 
-CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["uvicorn", "app.api.main:create_app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+FROM base AS prod
+
+COPY app ./app/
+
+CMD ["gunicorn", "app.api.main:create_app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers=2", "--timeout=120"]
