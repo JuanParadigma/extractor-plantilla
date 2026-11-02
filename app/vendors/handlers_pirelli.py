@@ -5,7 +5,6 @@ from typing import List, Dict, Any, Optional
 from app.vendors.registry import register
 from app.services.text_utils import parse_number_smart
 
-# Matches any number including non-standard thousands like "40387,958.64"
 _RE_NUM = re.compile(r'-?\d[\d,.]*\d|-?\d')
 
 _PERCEP_KEYS = (
@@ -13,11 +12,16 @@ _PERCEP_KEYS = (
     'NEUQUEN', 'RÍO NEG', 'RIO NEG', 'IB CONV', 'IB BA',
 )
 
+# Used to stop forward lookahead when scanning for amounts in fitz multi-line layout
+_SECTION_BREAKS = (
+    'SUBTOTAL', 'IVA', 'TOTAL FACTURA', 'REMITO',
+    'IB CONV', 'IB BA', 'PERC', 'IIBB', 'RG DGI', 'DN B70',
+    'NEUQUEN', 'RÍO NEG', 'RIO NEG',
+)
+
 
 def _last_amount(line: str) -> Optional[float]:
-    """Return the last monetary amount on line. Requires a decimal point (monetary amounts
-    always have 2 decimal places in Argentine invoices); skips CAE/barcode digit strings.
-    Normalizes OCR-introduced spaces inside numbers (e.g. '17591 ,280.68' → '17591,280.68')."""
+    """Last monetary amount on line (requires decimal point; skips CAE/barcode strings)."""
     normalized = re.sub(r'(\d)\s+([,.])', r'\1\2', line)
     for m in reversed(list(_RE_NUM.finditer(normalized))):
         raw = m.group(0)
@@ -29,12 +33,40 @@ def _last_amount(line: str) -> Optional[float]:
     return None
 
 
+def _next_amount(lines: List[str], i: int) -> Optional[float]:
+    """
+    Last monetary amount on line i, or on the following lines if line i has none.
+    Handles both OCR (single-line) and fitz (multi-line) layouts:
+      OCR:  'SUBTOTAL 40387,958.64'                    → found on same line
+      fitz: 'SUBTOTAL' / '40387,958.64'                → found on next line
+      fitz: 'IVA ventas.' / '21.000 %' / base / amount → last of next 4 lines
+    Stops scanning when a new section keyword is encountered.
+    """
+    v = _last_amount(lines[i])
+    if v is not None:
+        return v
+    last_v = None
+    for j in range(i + 1, min(i + 5, len(lines))):
+        up = lines[j].upper()
+        if any(s in up for s in _SECTION_BREAKS):
+            break
+        vj = _last_amount(lines[j])
+        if vj is not None:
+            last_v = vj
+    return last_v
+
+
+def _find_rate(lines: List[str], i: int) -> Optional[str]:
+    """Rate % on line i or on the next 2 lines (fitz splits rate onto its own line)."""
+    for j in range(i, min(i + 3, len(lines))):
+        m = re.search(r'(\d{1,2}(?:[.,]\d{1,3})?)\s*%', lines[j])
+        if m:
+            return m.group(1).replace(',', '.')
+    return None
+
+
 @register("PIRELLI")
 def extract_totals_pirelli(lines: List[str], out: Dict[str, Any]) -> None:
-    # Pirelli OCR collapses each tax section onto a single line:
-    #   SUBTOTAL [value]
-    #   [label] [rate]% [base] [amount]   <- we want the LAST number
-    #   [...] TOTAL FACTURA [total] [optional CAE number]
     start = max(0, len(lines) - 80)
     tail = lines[start:]
 
@@ -42,30 +74,29 @@ def extract_totals_pirelli(lines: List[str], out: Dict[str, Any]) -> None:
     iva_items: list = []
     percep_items: list = []
 
-    for line in tail:
+    for idx, line in enumerate(tail):
         up = line.upper()
 
         if 'SUBTOTAL' in up and subtotal is None:
-            v = _last_amount(line)
+            v = _next_amount(tail, idx)
             if v is not None:
                 subtotal = v
 
         elif re.search(r'\bIVA\b', up) and 'RESPONSABLE' not in up and 'TOTAL' not in up:
-            mrate = re.search(r'(\d{1,2}(?:[.,]\d{1,3})?)\s*%', line)
-            alic = mrate.group(1).replace(',', '.') if mrate else None
-            v = _last_amount(line)
+            alic = _find_rate(tail, idx)
+            v = _next_amount(tail, idx)
             if v is not None:
                 iva_total = (iva_total or 0.0) + v
                 iva_items.append({"alicuota": alic, "monto": v})
 
         elif any(k in up for k in _PERCEP_KEYS):
-            v = _last_amount(line)
+            v = _next_amount(tail, idx)
             if v is not None:
                 percep_total = (percep_total or 0.0) + v
                 percep_items.append({"desc": line.strip(), "monto": v})
 
         elif 'TOTAL FACTURA' in up:
-            v = _last_amount(line)
+            v = _next_amount(tail, idx)
             if v is not None:
                 total = v
 
