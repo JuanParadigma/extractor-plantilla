@@ -103,7 +103,8 @@ def _guess_vendor_name(lines: List[str], vendor: Optional[str]) -> Optional[str]
     return None
 
 def extract_names_and_cuits(
-    lines: List[str], vendor: Optional[str]
+    lines: List[str], vendor: Optional[str],
+    known_cuits: Optional[Dict[str, str]] = None,
 ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
     proveedor = None
     cliente = None
@@ -111,7 +112,15 @@ def extract_names_and_cuits(
     cuit_cli = None
     cuit_positions = _collect_cuit_positions(lines)
     if cuit_positions:
-        cuit_prov = cuit_positions[0][1]
+        # If we have a CUIT→vendor map, use it to identify the provider CUIT regardless
+        # of order (some PDFs list the client's info before the provider's).
+        if known_cuits:
+            for _, cuit in cuit_positions:
+                if cuit in known_cuits:
+                    cuit_prov = cuit
+                    break
+        if cuit_prov is None:
+            cuit_prov = cuit_positions[0][1]
         rest = [c for c in cuit_positions if c[1] != cuit_prov]
         if rest:
             idx, cuit_cli = rest[-1]

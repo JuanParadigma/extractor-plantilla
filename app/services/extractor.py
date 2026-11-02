@@ -51,7 +51,7 @@ class InvoiceExtractor:
         header = extract_header_common(lines)
         cfg = load_vendor_config(cfg_path)
         vendor_guess = (vendor_hint or "").upper() or detect_vendor_basic(lines, cfg["detect"]["names"]) or None
-        parties_tuple = extract_names_and_cuits(lines, vendor_guess)
+        parties_tuple = extract_names_and_cuits(lines, vendor_guess, known_cuits=cfg["detect"]["cuits"])
         parties = {
             "proveedor": parties_tuple[0],
             "cuit_proveedor": parties_tuple[1],
