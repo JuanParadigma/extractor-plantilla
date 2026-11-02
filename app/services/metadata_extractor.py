@@ -20,7 +20,7 @@ def _find_invoice_number(lines: List[str]) -> Optional[str]:
     for line in lines:
         match = RE_NUM_FACT.search(line)
         if match:
-            number = match.group(0)
+            number = re.sub(r'\s+', '', match.group(0))  # normalize "0007 - 00026054" → "0007-00026054"
     return number
 
 
@@ -88,6 +88,7 @@ def _guess_client_name(lines: List[str], idx: int) -> Optional[str]:
 VENDOR_REGEX = {
     "GUERRINI": r"GUERRINI\s+NEUM[A?]TICOS?\s*S\.?A\.?",
     "PIRELLI": r"PIRELLI\s+NEUM[A?]TICOS?\s*S\.?A\.?I\.?C\.?",
+    "PROMETEON": r"PROMETEON\s+TYRE\s+GROUP",
 }
 
 def _guess_vendor_name(lines: List[str], vendor: Optional[str]) -> Optional[str]:

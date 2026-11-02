@@ -6,6 +6,10 @@ GUERRINI:
   detect:
     names: ["GUERRINI NEUMÁTICOS", "GUERRINI NEUMATICOS"]
     cuits:  ["30-67701881-6"]
+PROMETEON:
+  detect:
+    names: ["PROMETEON TYRE GROUP"]
+    cuits:  ["30-71580663-7"]
 # ACME (ejemplo):
 # ACME:
 #   detect:
