@@ -19,23 +19,6 @@ def _normalize_ocr_spaces(text: str) -> str:
     return re.sub(r'(\d)\s+([,.])', r'\1\2', text)
 
 
-def _first_amount_after(line: str, keyword: str) -> Optional[float]:
-    """Extract first monetary amount (with at least one separator) after keyword on line."""
-    norm = _normalize_ocr_spaces(line)
-    idx = norm.upper().find(keyword.upper())
-    if idx == -1:
-        return None
-    after = norm[idx + len(keyword):]
-    for m in _RE_NUM.finditer(after):
-        raw = m.group(0)
-        if ',' not in raw and '.' not in raw:
-            continue
-        v = parse_number_smart(raw)
-        if v is not None and v > 0:
-            return v
-    return None
-
-
 def _last_amount(line: str) -> Optional[float]:
     """Last monetary amount on line (must have at least one separator)."""
     norm = _normalize_ocr_spaces(line)
@@ -49,13 +32,41 @@ def _last_amount(line: str) -> Optional[float]:
     return None
 
 
+def _amount_for_label(lines: List[str], i: int) -> Optional[float]:
+    """
+    Find the monetary amount for a keyword on line i.
+    Handles both OCR (keyword + value on same line) and fitz multi-column layouts:
+      - fitz: value on line i-1, label on line i  (IMPORTE NETO, TOTAL PESOS, percepciones)
+      - fitz: label on line i, value on line i+1   (IVA)
+    """
+    # OCR: value on same line
+    v = _last_amount(lines[i])
+    if v is not None:
+        return v
+    # fitz: value on previous line
+    if i - 1 >= 0:
+        v = _last_amount(lines[i - 1])
+        if v is not None:
+            return v
+    # fitz: value on next line (IVA label comes before its value)
+    if i + 1 < len(lines):
+        v = _last_amount(lines[i + 1])
+        if v is not None:
+            return v
+    return None
+
+
+def _find_rate(lines: List[str], i: int) -> Optional[str]:
+    """Rate % on line i or within the next 2 lines (fitz puts rate after the amount)."""
+    for j in range(i, min(i + 3, len(lines))):
+        m = re.search(r'(\d{1,2}(?:[.,]\d{1,2})?)\s*%', lines[j])
+        if m:
+            return m.group(1).replace(',', '.')
+    return None
+
+
 @register("PROMETEON")
 def extract_totals_prometeon(lines: List[str], out: Dict[str, Any]) -> None:
-    # Prometeon format (last page, European numbers with . thousands and , decimal):
-    #   IMPORTE NETO [subtotal]      ← total net before taxes
-    #   IVA [rate]% [iva_amount]     ← rate and amount on same line
-    #   [percep label] [rate]% [amount]   ← optional, label+rate+amount on same line
-    #   TOTAL PESOS [total]
     start = max(0, len(lines) - 60)
     tail = lines[start:]
 
@@ -63,30 +74,29 @@ def extract_totals_prometeon(lines: List[str], out: Dict[str, Any]) -> None:
     iva_items: list = []
     percep_items: list = []
 
-    for line in tail:
+    for idx, line in enumerate(tail):
         up = line.upper()
 
         if 'IMPORTE NETO' in up and subtotal is None:
-            v = _first_amount_after(line, 'IMPORTE NETO')
+            v = _amount_for_label(tail, idx)
             if v is not None:
                 subtotal = v
 
         elif re.search(r'\bIVA\b', up) and 'RESPONSABLE' not in up:
-            mrate = re.search(r'(\d{1,2}(?:[.,]\d{1,2})?)\s*%', line)
-            alic = mrate.group(1).replace(',', '.') if mrate else None
-            v = _last_amount(line)
+            alic = _find_rate(tail, idx)
+            v = _amount_for_label(tail, idx)
             if v is not None:
                 iva_total = (iva_total or 0.0) + v
                 iva_items.append({"alicuota": alic, "monto": v})
 
         elif any(k in up for k in _PERCEP_KEYS):
-            v = _last_amount(line)
+            v = _amount_for_label(tail, idx)
             if v is not None:
                 percep_total = (percep_total or 0.0) + v
                 percep_items.append({"desc": line.strip(), "monto": v})
 
         elif 'TOTAL PESOS' in up:
-            v = _first_amount_after(line, 'TOTAL PESOS')
+            v = _amount_for_label(tail, idx)
             if v is not None:
                 total = v
 
