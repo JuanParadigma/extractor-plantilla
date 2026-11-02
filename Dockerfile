@@ -25,5 +25,6 @@ CMD ["uvicorn", "app.api.main:create_app", "--host", "0.0.0.0", "--port", "8000"
 FROM base AS prod
 
 COPY app ./app/
+COPY vendors.yaml .
 
 CMD ["gunicorn", "app.api.main:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers=2", "--timeout=120"]
