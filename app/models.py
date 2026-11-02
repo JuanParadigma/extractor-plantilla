@@ -4,6 +4,7 @@ from enum import Enum
 class Vendor(str, Enum):
     GUERRINI = "GUERRINI"
     PIRELLI = "PIRELLI"
+    PROMETEON = "PROMETEON"
 
 
 class OutFmt(str, Enum):

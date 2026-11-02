@@ -23,4 +23,4 @@ FROM base AS prod
 
 COPY app ./app/
 
-CMD ["gunicorn", "app.api.main:create_app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers=2", "--timeout=120"]
+CMD ["gunicorn", "app.api.main:app", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--workers=2", "--timeout=120"]
